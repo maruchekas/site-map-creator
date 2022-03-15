@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.RecursiveTask;
 import java.util.regex.Matcher;
@@ -14,7 +16,9 @@ public class SiteMapBuilder extends RecursiveTask<String> {
 
   private String url;
   private static String mainUrl;
-  private static Set<String> allLinks = new ConcurrentSkipListSet<>();
+  private static Map<String, Integer> allLinks = new ConcurrentHashMap<>();
+  private static final String FILE_LINK = "http[s]?:\\/(?:\\/[^\\/]+){1,}(?:\\/[А-Яа-яёЁ\\w- ]+\\.[a-z]{3,5}" +
+          "(?![\\/]|[\\wА-Яа-яёЁ]))";
   private int level;
 
   public SiteMapBuilder(String url) {
@@ -52,9 +56,9 @@ public class SiteMapBuilder extends RecursiveTask<String> {
         if (checkLink(link)) {
           SiteMapBuilder siteMapBuilder = new SiteMapBuilder(link);
           siteMapBuilder.fork();
-      level++;
+          level++;
           subTask.add(siteMapBuilder);
-          allLinks.add(link);
+          allLinks.put(link, level);
         }
       }
     } catch (InterruptedException | IOException ignored) {
@@ -62,8 +66,8 @@ public class SiteMapBuilder extends RecursiveTask<String> {
   }
 
   private boolean checkLink(String link){
-    return !link.isEmpty() && link.startsWith(mainUrl) && !allLinks.contains(link)
-        && !link.contains("#");
+    return !link.isEmpty() && link.startsWith(mainUrl) && !allLinks.containsKey(link)
+            && !link.contains("#") && !Pattern.matches(FILE_LINK, link);
   }
 
   private StringBuilder slashMatcher(String attr){
